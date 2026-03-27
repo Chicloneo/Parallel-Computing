@@ -1,0 +1,357 @@
+---
+title: "Client-Server Analysis with Python Sockets"
+author: "Santiago Lillo Macías"
+date: last-modified
+format:
+  gfm:
+    toc: true
+  html:
+    toc: true
+    code-fold: true
+    theme: cosmo
+jupyter: python3
+---
+
+## Introduction
+
+We explain in this document how the connection client-server works. This is a very simple introduction with `Python`using the `socket`library. We will have two files: `socket_cliente.py` and `socket_servidor.py`, in order to distinguish between the client and the server, respectively.
+
+## Basic commands {#sec-basic}
+
+The `socket` library must be imported.
+
+```python
+from socket import socket
+```
+
+### `socket_cliente.py`
+
+```python
+sckt = socket()                      # creates a socket
+srvr_ip = "localhost"                # Server IP address. We want to connect to "localhost"
+srvr_puerto = 54323                  # Server is listening through this port
+sckt.connect((srvr_ip, srvr_puerto)) # Connecting to the server. 
+```
+
+The server IP is `"localhost"` because this is a simulation on a single computer.
+
+You may change `srvr_puerto` if you get some connection errors. This should be a number between 1024 and 99999.
+
+Now that the client and server are connected, the information sending and recieving should occur.
+
+To end the connection run this line
+
+```python
+sckt.close() 
+```
+
+### `socket_servidor.py`
+
+```python
+srvr_socket = socket()              # creates a socket
+ip_addr = "localhost"               # IP address. Client must know this.
+puerto = 54323                      
+srvr_socket.bind((ip_addr, puerto)) # "This socket has ip_addr as IP address and puerto as the port"
+srvr_socket.listen()                # The server is listening
+
+cl_socket, _ = srvr_socket.accept() # Hello client, ¿what info do you have for me?
+                                    # '_' does not matter for us now
+```
+
+`cl_socket, _ = srvr_socket.accept()` creates a new socket (different from `srvr_socket`) so we will have to close both at the end. `srvr_socket` listens to the cliend and `cl_socket` will recieve the information.
+
+```python
+# Server is working ...
+cl_socket.close()
+srvr_socket.close()
+```
+Last two linea end the service.
+
+## How does the connection really works?
+
+We will simulate a server that transforms text into capital letters.
+
+### `socket_cliente.py`
+
+```python
+texto = "this is a lowercase text"
+msj_env = texto.encode()            
+sckt.send(msj_env)                  # We send our information already encoded
+
+# This is where the server is working. 
+# ...
+# We now have recieved our original message, but now with capital letters
+
+msj_rec = sckt.recv(1024)           # 1024 as maximum bytes size
+respuesta = msj_rec.decode()        # We have to decode it in order to be legible
+```
+
+We must encode our message with `texto.encode`. The server cannot recieve strings as input. It will have to decode it then.
+
+Finnaly, `respuesta` is `THIS IS A LOWERCASE TEXT`. Funny because it's really not.
+
+### `socket_servidor.py`
+
+No we see how the server transforms the text into uppercase letters.
+
+```python
+msj_rec = cl_socket.recv(1024)      # The server recieves the message, 1024 bytes max.
+texto = msj_rec.decode()            # We decode the message
+respuesta = texto.upper()           # transform text into capital letters
+cl_socket.send(respuesta.encode())  # encode the message and send it to the client socket
+```
+
+## User interaction
+
+We may now consider how to interact through the Terminal. The user asks to convert text to either capital or lowercase. The script described in @sec-basic is the same. We only change how the sending and recieving works.
+
+### User
+
+```python
+comando = ""
+while comando != 'QUIT':
+    comando = input("¿Qué comando deseas ejecutar, transformar a mayúsculas (UPPER) o a minúsculas (LOWER)? QUIT para salir: ")
+
+    if comando == 'QUIT':
+        print('¡Hasta pronto!')
+        break
+
+    texto = input("Introduce el texto que deseas transformar: ")
+    peticion = f"{comando}:{texto}" # you can also do it like this -> peticion = comando + ':' + texto
+    msj_env = peticion.encode()
+    sckt.send(msj_env)
+    msj_rec = sckt.recv(1024)       
+    respuesta = msj_rec.decode()
+
+    if comando == 'UPPER':
+        cmd = 'mayúsculas'
+    elif comando == 'LOWER':
+        cmd = 'minúsculas'
+    else:
+        cmd = 'desconocido'
+
+    print(f"Según el servidor, '{texto}' en {cmd} es '{respuesta}'.")
+```
+
+The condition is simple. While the user does not want to quit, the server remains avaliable for the user.
+
+The user enters the command `UPPER` or `LOWER`, depending on what he wants to do. Then he enters the text. The client send the command and text information together. It is up to the server to split the information. Then we will recieve the text converted to upper or lower. 
+
+### Server
+
+```python
+msj_rec = cl_socket.recv(1024)       # The server recieves the message, 1024 bytes max.
+while msj_rec:
+
+    peticion = msj_rec.decode()      # We decode the message
+
+    lista_datos = peticion.split(':')
+    comando = lista_datos[0]
+    texto = lista_datos[1]
+
+    if comando == 'UPPER':
+        respuesta = texto.upper()
+    elif comando == 'LOWER':
+        respuesta = texto.lower()
+    else:
+        respuesta = ('ERROR: petición no reconocida.')
+
+    cl_socket.send(respuesta.encode())
+    msj_rec = cl_socket.recv(1024)
+```
+
+How does the condicion `while msj_rec:` work? The loop is actually asking "do you have any information?". So if the message is empty, `None`, then the condition is `False`, and the loop ends.
+
+We split the information into `UPPER`/`LOWER` and the text. Then the server does the job depending on th ecommand. Using `elif` is essential. Do not use `if`. Imagine you have two `if`s and the command is `UPPER`. The first condition holds. The second does not, so it will enter the `else` condition and an error will show up.
+
+Now the user will have an interaction like the following:
+
+```{text}
+¿Qué comando deseas ejecutar, transformar a mayúsculas (UPPER) o a minúsculas (LOWER)? QUIT para salir: UPPER
+Introduce el texto que deseas transformar: hello world
+Según el servidor, 'hello world' en mayúsculas es 'HELLO WORLD'.
+¿Qué comando deseas ejecutar, transformar a mayúsculas (UPPER) o a minúsculas (LOWER)? QUIT para salir: LOWER
+Introduce el texto que deseas transformar: HELLO WORLD
+Según el servidor, 'HELLO WORLD' en minúsculas es 'hello world'.
+¿Qué comando deseas ejecutar, transformar a mayúsculas (UPPER) o a minúsculas (LOWER)? QUIT para salir: QUIT
+¡Hasta pronto!
+```
+
+## Multiple Users
+
+We may now consider multiple users entering the server and sending commands. The server has to manage this situation and it cannot give information to the wrong user. We solve this by using `Threads`. 
+
+The server scrpit will look like this:
+
+```python
+while True:
+    cl_socket, _ = srvr_socket.accept()
+    cl_thread = AtiendeCliente(cl_socket)
+    cl_thread.start()
+```
+
+The server first listens and accepts the clients (N users simultaneously). Then it creates the threads. Finally it assists the users. 
+
+`while True` is implemented because servers are meant to be avaliable at any time. For this reason, we can run our `socket_cliente.py` as much times as we want. The servers will be always waiting. The only way to end is to kill the terminal. 
+
+We create the following class to assist the client in the server script:
+
+```python
+class AtiendeCliente(Thread):
+    def __init__(self, cl_socket):
+        Thread.__init__(self)       # Create the thread
+        self.cl_socket = cl_socket
+
+    def run(self):
+        msj_rec = self.cl_socket.recv(1024) 
+        while msj_rec:
+
+            peticion = msj_rec.decode()
+
+            lista_datos = peticion.split(':')
+            comando = lista_datos[0]
+            texto = lista_datos[1]
+
+            if comando == 'UPPER':
+                respuesta = texto.upper()
+            elif comando == 'LOWER': #Es importante un elif y no un if, porque si el comando es UPPER, volvería a preguntar si es LOWER. Como no lo es, entra en el else y devuelve error
+                respuesta = texto.lower()
+            else:
+                respuesta = ('ERROR: petición no reconocida.')
+
+            self.cl_socket.send(respuesta.encode())
+            msj_rec = self.cl_socket.recv(1024)
+
+        self.cl_socket.close()
+```
+
+The `run` structure is the same as we saw before. Remark `AtiendeCliente` is a `Thread` subclass. `AtiendeCliente` has to know which client it has to help, so it recieves the client socket as the input. 
+
+We simulate the simultaneous users with the following code
+
+```python
+# Create and launch 5 clients simoultaneously
+hilos = []
+for i in range(1, 6):
+    hilo = threading.Thread(target=cliente_test, args=(i,))
+    hilos.append(hilo)
+    hilo.start()
+
+# Wait for everybody to end
+for hilo in hilos:
+    hilo.join()
+```
+
+We create five threads that asks the server at the same time. Each of them asks for upper and lower text. 
+
+`cliente_test` is the the function which sends and recieves the converted text. Then the result is printed. 
+
+```python
+def cliente_test(id_cliente):
+    try:
+        sckt = socket.socket()
+        sckt.connect(("localhost", 54323))
+
+        # Sending the request
+        peticion = f"UPPER:Cliente {id_cliente} dice hola"
+        sckt.send(peticion.encode())
+        respuesta = sckt.recv(1024).decode()
+        print(f"Cliente {id_cliente}: Envié '{peticion}', recibí '{respuesta}'")
+
+        time.sleep(0.5)  # Little pause
+
+        # Another request
+        peticion2 = f"LOWER:Cliente {id_cliente} DICE ADIÓS"
+        sckt.send(peticion2.encode())
+        respuesta2 = sckt.recv(1024).decode()
+        print(f"Cliente {id_cliente}: Envié '{peticion2}', recibí '{respuesta2}'")
+
+        sckt.close()
+    except Exception as e:
+        print(f"Cliente {id_cliente}: Error - {e}")
+```
+
+The user sees this
+
+```{text}
+Cliente 2: Envié 'UPPER:Cliente 2 dice hola', recibí 'CLIENTE 2 DICE HOLA'
+Cliente 3: Envié 'UPPER:Cliente 3 dice hola', recibí 'CLIENTE 3 DICE HOLA'
+Cliente 4: Envié 'UPPER:Cliente 4 dice hola', recibí 'CLIENTE 4 DICE HOLA'
+Cliente 1: Envié 'UPPER:Cliente 1 dice hola', recibí 'CLIENTE 1 DICE HOLA'
+Cliente 5: Envié 'UPPER:Cliente 5 dice hola', recibí 'CLIENTE 5 DICE HOLA'
+Cliente 3: Envié 'LOWER:Cliente 3 DICE ADIÓS', recibí 'cliente 3 dice adiós'
+Cliente 1: Envié 'LOWER:Cliente 1 DICE ADIÓS', recibí 'cliente 1 dice adiós'
+Cliente 2: Envié 'LOWER:Cliente 2 DICE ADIÓS', recibí 'cliente 2 dice adiós'
+Cliente 5: Envié 'LOWER:Cliente 5 DICE ADIÓS', recibí 'cliente 5 dice adiós'
+Cliente 4: Envié 'LOWER:Cliente 4 DICE ADIÓS', recibí 'cliente 4 dice adiós'
+Prueba completada: 5 clientes atendidos concurrentemente.
+```
+
+The server has managed the situation properly using concurrency (parallel computing with threads). It may be surprising thet `Cliente1`is printed after `CLiente4`. That is because of hardware and connection reasons we don't know now, but it's not important for us now. What matters is to work with each thread correctly, that is, without mixing the information from one thread with another.
+
+Now it's easy to make a Warehouse example. Everybody can send a message and it will be stored. After that everybpdy will ask to see the storage.
+
+We create the class `Almacen`
+
+```python
+class Almacen:
+    def __init__(self):
+        self.mensajes_almacenados = []
+
+    def anadir_mensaje(self, mensaje: str) -> None:
+        self.mensajes_almacenados.append(mensaje)
+        # Adds a message to the list
+
+    def devolver_lista(self) -> list:
+        return self.mensajes_almacenados
+        # Shows the list
+```
+
+and modify the `run` method on the server
+
+```python
+elif comando == 'ALMACENAR':
+    self.almacen.anadir_mensaje(texto)
+    respuesta = f'Mensaje {texto} almacenado.'
+elif comando == 'LISTA':
+    respuesta = 'Mensajes almacenados: ' + ', '.join(self.almacen.devolver_lista())
+```
+
+## Turning off the server
+
+We consider the situation where a user requests to turn the server off (and it will do so). 
+
+We modify the `AtiendeCliente` class initialization in the server script to add an `Event`object.
+
+```python
+class AtiendeCliente(Thread):
+    def __init__(self, cl_socket, almacen: Almacen, parar_event: threading.Event):
+        Thread.__init__(self)
+        self.cl_socket = cl_socket
+        self.almacen = almacen
+        self.parar_event = parar_event
+```
+
+We modify the `run` method. 
+
+```python
+elif comando == 'SHUTDOWN':
+    respuesta = 'Servidor apagándose...'
+    self.parar_event.set()
+```
+
+The server manages the situation now like this. It sets a 5 seconds limit to recieve any command. In other case, it will shut down. 
+
+```python
+# server script
+while not hay_que_parar.is_set():
+    try:
+        cl_socket, _ = srvr_socket.accept()
+        cl_socket.settimeout(5)
+        cl_thread = AtiendeCliente(cl_socket, almacen_compartido, hay_que_parar)
+        cl_thread.start()
+    except TimeoutError:
+        print("No se han recibido conexiones en los últimos 5 segundos. Cerrando el servidor.")
+```
+
+You can think of `.set()` as saying "I want to stop the event". So in the next loop iteration the condition will not hold.

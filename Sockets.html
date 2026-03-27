@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Santiago Lillo Macías">
+<meta name="dcterms.date" content="2026-03-27">
+
+<title>Client-Server Analysis with Python Sockets</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="Sockets_files/libs/clipboard/clipboard.min.js"></script>
+<script src="Sockets_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="Sockets_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="Sockets_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="Sockets_files/libs/quarto-html/popper.min.js"></script>
+<script src="Sockets_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="Sockets_files/libs/quarto-html/anchor.min.js"></script>
+<link href="Sockets_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="Sockets_files/libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="Sockets_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="Sockets_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="Sockets_files/libs/bootstrap/bootstrap-a74871fe4945b66d259aafc266475145.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a></li>
+  <li><a href="#sec-basic" id="toc-sec-basic" class="nav-link" data-scroll-target="#sec-basic">Basic commands</a>
+  <ul class="collapse">
+  <li><a href="#socket_cliente.py" id="toc-socket_cliente.py" class="nav-link" data-scroll-target="#socket_cliente.py"><code>socket_cliente.py</code></a></li>
+  <li><a href="#socket_servidor.py" id="toc-socket_servidor.py" class="nav-link" data-scroll-target="#socket_servidor.py"><code>socket_servidor.py</code></a></li>
+  </ul></li>
+  <li><a href="#how-does-the-connection-really-works" id="toc-how-does-the-connection-really-works" class="nav-link" data-scroll-target="#how-does-the-connection-really-works">How does the connection really works?</a>
+  <ul class="collapse">
+  <li><a href="#socket_cliente.py-1" id="toc-socket_cliente.py-1" class="nav-link" data-scroll-target="#socket_cliente.py-1"><code>socket_cliente.py</code></a></li>
+  <li><a href="#socket_servidor.py-1" id="toc-socket_servidor.py-1" class="nav-link" data-scroll-target="#socket_servidor.py-1"><code>socket_servidor.py</code></a></li>
+  </ul></li>
+  <li><a href="#user-interaction" id="toc-user-interaction" class="nav-link" data-scroll-target="#user-interaction">User interaction</a>
+  <ul class="collapse">
+  <li><a href="#user" id="toc-user" class="nav-link" data-scroll-target="#user">User</a></li>
+  <li><a href="#server" id="toc-server" class="nav-link" data-scroll-target="#server">Server</a></li>
+  </ul></li>
+  <li><a href="#multiple-users" id="toc-multiple-users" class="nav-link" data-scroll-target="#multiple-users">Multiple Users</a></li>
+  <li><a href="#turning-off-the-server" id="toc-turning-off-the-server" class="nav-link" data-scroll-target="#turning-off-the-server">Turning off the server</a></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Client-Server Analysis with Python Sockets</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Santiago Lillo Macías </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">March 27, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
+<p>We explain in this document how the connection client-server works. This is a very simple introduction with <code>Python</code>using the <code>socket</code>library. We will have two files: <code>socket_cliente.py</code> and <code>socket_servidor.py</code>, in order to distinguish between the client and the server, respectively.</p>
+</section>
+<section id="sec-basic" class="level2">
+<h2 class="anchored" data-anchor-id="sec-basic">Basic commands</h2>
+<p>The <code>socket</code> library must be imported.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> socket <span class="im">import</span> socket</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="socket_cliente.py" class="level3">
+<h3 class="anchored" data-anchor-id="socket_cliente.py"><code>socket_cliente.py</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>sckt <span class="op">=</span> socket()                      <span class="co"># creates a socket</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>srvr_ip <span class="op">=</span> <span class="st">"localhost"</span>                <span class="co"># Server IP address. We want to connect to "localhost"</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>srvr_puerto <span class="op">=</span> <span class="dv">54323</span>                  <span class="co"># Server is listening through this port</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>sckt.<span class="ex">connect</span>((srvr_ip, srvr_puerto)) <span class="co"># Connecting to the server. </span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The server IP is <code>"localhost"</code> because this is a simulation on a single computer.</p>
+<p>You may change <code>srvr_puerto</code> if you get some connection errors. This should be a number between 1024 and 99999.</p>
+<p>Now that the client and server are connected, the information sending and recieving should occur.</p>
+<p>To end the connection run this line</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>sckt.close() </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="socket_servidor.py" class="level3">
+<h3 class="anchored" data-anchor-id="socket_servidor.py"><code>socket_servidor.py</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>srvr_socket <span class="op">=</span> socket()              <span class="co"># creates a socket</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>ip_addr <span class="op">=</span> <span class="st">"localhost"</span>               <span class="co"># IP address. Client must know this.</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>puerto <span class="op">=</span> <span class="dv">54323</span>                      </span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>srvr_socket.bind((ip_addr, puerto)) <span class="co"># "This socket has ip_addr as IP address and puerto as the port"</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>srvr_socket.listen()                <span class="co"># The server is listening</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>cl_socket, _ <span class="op">=</span> srvr_socket.accept() <span class="co"># Hello client, ¿what info do you have for me?</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>                                    <span class="co"># '_' does not matter for us now</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>cl_socket, _ = srvr_socket.accept()</code> creates a new socket (different from <code>srvr_socket</code>) so we will have to close both at the end. <code>srvr_socket</code> listens to the cliend and <code>cl_socket</code> will recieve the information.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Server is working ...</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>cl_socket.close()</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>srvr_socket.close()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Last two linea end the service.</p>
+</section>
+</section>
+<section id="how-does-the-connection-really-works" class="level2">
+<h2 class="anchored" data-anchor-id="how-does-the-connection-really-works">How does the connection really works?</h2>
+<p>We will simulate a server that transforms text into capital letters.</p>
+<section id="socket_cliente.py-1" class="level3">
+<h3 class="anchored" data-anchor-id="socket_cliente.py-1"><code>socket_cliente.py</code></h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>texto <span class="op">=</span> <span class="st">"this is a lowercase text"</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>msj_env <span class="op">=</span> texto.encode()            </span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>sckt.send(msj_env)                  <span class="co"># We send our information already encoded</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co"># This is where the server is working. </span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># ...</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># We now have recieved our original message, but now with capital letters</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>msj_rec <span class="op">=</span> sckt.recv(<span class="dv">1024</span>)           <span class="co"># 1024 as maximum bytes size</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>respuesta <span class="op">=</span> msj_rec.decode()        <span class="co"># We have to decode it in order to be legible</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>We must encode our message with <code>texto.encode</code>. The server cannot recieve strings as input. It will have to decode it then.</p>
+<p>Finnaly, <code>respuesta</code> is <code>THIS IS A LOWERCASE TEXT</code>. Funny because it’s really not.</p>
+</section>
+<section id="socket_servidor.py-1" class="level3">
+<h3 class="anchored" data-anchor-id="socket_servidor.py-1"><code>socket_servidor.py</code></h3>
+<p>No we see how the server transforms the text into uppercase letters.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>msj_rec <span class="op">=</span> cl_socket.recv(<span class="dv">1024</span>)      <span class="co"># The server recieves the message, 1024 bytes max.</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>texto <span class="op">=</span> msj_rec.decode()            <span class="co"># We decode the message</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>respuesta <span class="op">=</span> texto.upper()           <span class="co"># transform text into capital letters</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>cl_socket.send(respuesta.encode())  <span class="co"># encode the message and send it to the client socket</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="user-interaction" class="level2">
+<h2 class="anchored" data-anchor-id="user-interaction">User interaction</h2>
+<p>We may now consider how to interact through the Terminal. The user asks to convert text to either capital or lowercase. The script described in <a href="#sec-basic" class="quarto-xref">Section&nbsp;2</a> is the same. We only change how the sending and recieving works.</p>
+<section id="user" class="level3">
+<h3 class="anchored" data-anchor-id="user">User</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>comando <span class="op">=</span> <span class="st">""</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> comando <span class="op">!=</span> <span class="st">'QUIT'</span>:</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    comando <span class="op">=</span> <span class="bu">input</span>(<span class="st">"¿Qué comando deseas ejecutar, transformar a mayúsculas (UPPER) o a minúsculas (LOWER)? QUIT para salir: "</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> comando <span class="op">==</span> <span class="st">'QUIT'</span>:</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">'¡Hasta pronto!'</span>)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">break</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    texto <span class="op">=</span> <span class="bu">input</span>(<span class="st">"Introduce el texto que deseas transformar: "</span>)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    peticion <span class="op">=</span> <span class="ss">f"</span><span class="sc">{</span>comando<span class="sc">}</span><span class="ss">:</span><span class="sc">{</span>texto<span class="sc">}</span><span class="ss">"</span> <span class="co"># you can also do it like this -&gt; peticion = comando + ':' + texto</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    msj_env <span class="op">=</span> peticion.encode()</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    sckt.send(msj_env)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    msj_rec <span class="op">=</span> sckt.recv(<span class="dv">1024</span>)       </span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    respuesta <span class="op">=</span> msj_rec.decode()</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> comando <span class="op">==</span> <span class="st">'UPPER'</span>:</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>        cmd <span class="op">=</span> <span class="st">'mayúsculas'</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> comando <span class="op">==</span> <span class="st">'LOWER'</span>:</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>        cmd <span class="op">=</span> <span class="st">'minúsculas'</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>        cmd <span class="op">=</span> <span class="st">'desconocido'</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Según el servidor, '</span><span class="sc">{</span>texto<span class="sc">}</span><span class="ss">' en </span><span class="sc">{</span>cmd<span class="sc">}</span><span class="ss"> es '</span><span class="sc">{</span>respuesta<span class="sc">}</span><span class="ss">'."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The condition is simple. While the user does not want to quit, the server remains avaliable for the user.</p>
+<p>The user enters the command <code>UPPER</code> or <code>LOWER</code>, depending on what he wants to do. Then he enters the text. The client send the command and text information together. It is up to the server to split the information. Then we will recieve the text converted to upper or lower.</p>
+</section>
+<section id="server" class="level3">
+<h3 class="anchored" data-anchor-id="server">Server</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>msj_rec <span class="op">=</span> cl_socket.recv(<span class="dv">1024</span>)       <span class="co"># The server recieves the message, 1024 bytes max.</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> msj_rec:</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    peticion <span class="op">=</span> msj_rec.decode()      <span class="co"># We decode the message</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    lista_datos <span class="op">=</span> peticion.split(<span class="st">':'</span>)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    comando <span class="op">=</span> lista_datos[<span class="dv">0</span>]</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    texto <span class="op">=</span> lista_datos[<span class="dv">1</span>]</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> comando <span class="op">==</span> <span class="st">'UPPER'</span>:</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>        respuesta <span class="op">=</span> texto.upper()</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">elif</span> comando <span class="op">==</span> <span class="st">'LOWER'</span>:</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>        respuesta <span class="op">=</span> texto.lower()</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>        respuesta <span class="op">=</span> (<span class="st">'ERROR: petición no reconocida.'</span>)</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    cl_socket.send(respuesta.encode())</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    msj_rec <span class="op">=</span> cl_socket.recv(<span class="dv">1024</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>How does the condicion <code>while msj_rec:</code> work? The loop is actually asking “do you have any information?”. So if the message is empty, <code>None</code>, then the condition is <code>False</code>, and the loop ends.</p>
+<p>We split the information into <code>UPPER</code>/<code>LOWER</code> and the text. Then the server does the job depending on th ecommand. Using <code>elif</code> is essential. Do not use <code>if</code>. Imagine you have two <code>if</code>s and the command is <code>UPPER</code>. The first condition holds. The second does not, so it will enter the <code>else</code> condition and an error will show up.</p>
+<p>Now the user will have an interaction like the following:</p>
+<pre class="{text}"><code>¿Qué comando deseas ejecutar, transformar a mayúsculas (UPPER) o a minúsculas (LOWER)? QUIT para salir: UPPER
+Introduce el texto que deseas transformar: hello world
+Según el servidor, 'hello world' en mayúsculas es 'HELLO WORLD'.
+¿Qué comando deseas ejecutar, transformar a mayúsculas (UPPER) o a minúsculas (LOWER)? QUIT para salir: LOWER
+Introduce el texto que deseas transformar: HELLO WORLD
+Según el servidor, 'HELLO WORLD' en minúsculas es 'hello world'.
+¿Qué comando deseas ejecutar, transformar a mayúsculas (UPPER) o a minúsculas (LOWER)? QUIT para salir: QUIT
+¡Hasta pronto!</code></pre>
+</section>
+</section>
+<section id="multiple-users" class="level2">
+<h2 class="anchored" data-anchor-id="multiple-users">Multiple Users</h2>
+<p>We may now consider multiple users entering the server and sending commands. The server has to manage this situation and it cannot give information to the wrong user. We solve this by using <code>Threads</code>.</p>
+<p>The server scrpit will look like this:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    cl_socket, _ <span class="op">=</span> srvr_socket.accept()</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    cl_thread <span class="op">=</span> AtiendeCliente(cl_socket)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    cl_thread.start()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The server first listens and accepts the clients (N users simultaneously). Then it creates the threads. Finally it assists the users.</p>
+<p><code>while True</code> is implemented because servers are meant to be avaliable at any time. For this reason, we can run our <code>socket_cliente.py</code> as much times as we want. The servers will be always waiting. The only way to end is to kill the terminal.</p>
+<p>We create the following class to assist the client in the server script:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AtiendeCliente(Thread):</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, cl_socket):</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>        Thread.<span class="fu">__init__</span>(<span class="va">self</span>)       <span class="co"># Create the thread</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.cl_socket <span class="op">=</span> cl_socket</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> run(<span class="va">self</span>):</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>        msj_rec <span class="op">=</span> <span class="va">self</span>.cl_socket.recv(<span class="dv">1024</span>) </span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">while</span> msj_rec:</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>            peticion <span class="op">=</span> msj_rec.decode()</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>            lista_datos <span class="op">=</span> peticion.split(<span class="st">':'</span>)</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>            comando <span class="op">=</span> lista_datos[<span class="dv">0</span>]</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>            texto <span class="op">=</span> lista_datos[<span class="dv">1</span>]</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> comando <span class="op">==</span> <span class="st">'UPPER'</span>:</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>                respuesta <span class="op">=</span> texto.upper()</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>            <span class="cf">elif</span> comando <span class="op">==</span> <span class="st">'LOWER'</span>: <span class="co">#Es importante un elif y no un if, porque si el comando es UPPER, volvería a preguntar si es LOWER. Como no lo es, entra en el else y devuelve error</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>                respuesta <span class="op">=</span> texto.lower()</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span>:</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>                respuesta <span class="op">=</span> (<span class="st">'ERROR: petición no reconocida.'</span>)</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>            <span class="va">self</span>.cl_socket.send(respuesta.encode())</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>            msj_rec <span class="op">=</span> <span class="va">self</span>.cl_socket.recv(<span class="dv">1024</span>)</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.cl_socket.close()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>run</code> structure is the same as we saw before. Remark <code>AtiendeCliente</code> is a <code>Thread</code> subclass. <code>AtiendeCliente</code> has to know which client it has to help, so it recieves the client socket as the input.</p>
+<p>We simulate the simultaneous users with the following code</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create and launch 5 clients simoultaneously</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>hilos <span class="op">=</span> []</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, <span class="dv">6</span>):</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    hilo <span class="op">=</span> threading.Thread(target<span class="op">=</span>cliente_test, args<span class="op">=</span>(i,))</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    hilos.append(hilo)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    hilo.start()</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Wait for everybody to end</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> hilo <span class="kw">in</span> hilos:</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    hilo.join()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>We create five threads that asks the server at the same time. Each of them asks for upper and lower text.</p>
+<p><code>cliente_test</code> is the the function which sends and recieves the converted text. Then the result is printed.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> cliente_test(id_cliente):</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">try</span>:</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>        sckt <span class="op">=</span> socket.socket()</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>        sckt.<span class="ex">connect</span>((<span class="st">"localhost"</span>, <span class="dv">54323</span>))</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Sending the request</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>        peticion <span class="op">=</span> <span class="ss">f"UPPER:Cliente </span><span class="sc">{</span>id_cliente<span class="sc">}</span><span class="ss"> dice hola"</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>        sckt.send(peticion.encode())</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>        respuesta <span class="op">=</span> sckt.recv(<span class="dv">1024</span>).decode()</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Cliente </span><span class="sc">{</span>id_cliente<span class="sc">}</span><span class="ss">: Envié '</span><span class="sc">{</span>peticion<span class="sc">}</span><span class="ss">', recibí '</span><span class="sc">{</span>respuesta<span class="sc">}</span><span class="ss">'"</span>)</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>        time.sleep(<span class="fl">0.5</span>)  <span class="co"># Little pause</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Another request</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>        peticion2 <span class="op">=</span> <span class="ss">f"LOWER:Cliente </span><span class="sc">{</span>id_cliente<span class="sc">}</span><span class="ss"> DICE ADIÓS"</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>        sckt.send(peticion2.encode())</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>        respuesta2 <span class="op">=</span> sckt.recv(<span class="dv">1024</span>).decode()</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Cliente </span><span class="sc">{</span>id_cliente<span class="sc">}</span><span class="ss">: Envié '</span><span class="sc">{</span>peticion2<span class="sc">}</span><span class="ss">', recibí '</span><span class="sc">{</span>respuesta2<span class="sc">}</span><span class="ss">'"</span>)</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>        sckt.close()</span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">except</span> <span class="pp">Exception</span> <span class="im">as</span> e:</span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Cliente </span><span class="sc">{</span>id_cliente<span class="sc">}</span><span class="ss">: Error - </span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The user sees this</p>
+<pre class="{text}"><code>Cliente 2: Envié 'UPPER:Cliente 2 dice hola', recibí 'CLIENTE 2 DICE HOLA'
+Cliente 3: Envié 'UPPER:Cliente 3 dice hola', recibí 'CLIENTE 3 DICE HOLA'
+Cliente 4: Envié 'UPPER:Cliente 4 dice hola', recibí 'CLIENTE 4 DICE HOLA'
+Cliente 1: Envié 'UPPER:Cliente 1 dice hola', recibí 'CLIENTE 1 DICE HOLA'
+Cliente 5: Envié 'UPPER:Cliente 5 dice hola', recibí 'CLIENTE 5 DICE HOLA'
+Cliente 3: Envié 'LOWER:Cliente 3 DICE ADIÓS', recibí 'cliente 3 dice adiós'
+Cliente 1: Envié 'LOWER:Cliente 1 DICE ADIÓS', recibí 'cliente 1 dice adiós'
+Cliente 2: Envié 'LOWER:Cliente 2 DICE ADIÓS', recibí 'cliente 2 dice adiós'
+Cliente 5: Envié 'LOWER:Cliente 5 DICE ADIÓS', recibí 'cliente 5 dice adiós'
+Cliente 4: Envié 'LOWER:Cliente 4 DICE ADIÓS', recibí 'cliente 4 dice adiós'
+Prueba completada: 5 clientes atendidos concurrentemente.</code></pre>
+<p>The server has managed the situation properly using concurrency (parallel computing with threads). It may be surprising thet <code>Cliente1</code>is printed after <code>CLiente4</code>. That is because of hardware and connection reasons we don’t know now, but it’s not important for us now. What matters is to work with each thread correctly, that is, without mixing the information from one thread with another.</p>
+<p>Now it’s easy to make a Warehouse example. Everybody can send a message and it will be stored. After that everybpdy will ask to see the storage.</p>
+<p>We create the class <code>Almacen</code></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Almacen:</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>):</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.mensajes_almacenados <span class="op">=</span> []</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> anadir_mensaje(<span class="va">self</span>, mensaje: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.mensajes_almacenados.append(mensaje)</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> devolver_lista(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">list</span>:</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.mensajes_almacenados</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>and modify the <code>run</code> method on the server</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="cf">elif</span> comando <span class="op">==</span> <span class="st">'ALMACENAR'</span>:</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>.almacen.anadir_mensaje(texto)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    respuesta <span class="op">=</span> <span class="ss">f'Mensaje </span><span class="sc">{</span>texto<span class="sc">}</span><span class="ss"> almacenado.'</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="cf">elif</span> comando <span class="op">==</span> <span class="st">'LISTA'</span>:</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    respuesta <span class="op">=</span> <span class="st">'Mensajes almacenados: '</span> <span class="op">+</span> <span class="st">', '</span>.join(<span class="va">self</span>.almacen.devolver_lista())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="turning-off-the-server" class="level2">
+<h2 class="anchored" data-anchor-id="turning-off-the-server">Turning off the server</h2>
+<p>We consider the situation where a user requests to turn the server off (and it will do so).</p>
+<p>We modify the <code>AtiendeCliente</code> class initialization in the server script.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> AtiendeCliente(Thread):</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, cl_socket, almacen: Almacen, parar_event: threading.Event):</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>        Thread.<span class="fu">__init__</span>(<span class="va">self</span>)</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.cl_socket <span class="op">=</span> cl_socket</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.almacen <span class="op">=</span> almacen</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.parar_event <span class="op">=</span> parar_event</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>We modify the <code>run</code> method.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="cf">elif</span> comando <span class="op">==</span> <span class="st">'SHUTDOWN'</span>:</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    respuesta <span class="op">=</span> <span class="st">'Servidor apagándose...'</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    <span class="va">self</span>.parar_event.<span class="bu">set</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The server manages the situation now like this. It has set a 5 seconds limit in order to recieve any command. In other case, it will shut down.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="kw">not</span> hay_que_parar.is_set():</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">try</span>:</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>        cl_socket, _ <span class="op">=</span> srvr_socket.accept()</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>        cl_socket.settimeout(<span class="dv">5</span>)</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>        cl_thread <span class="op">=</span> AtiendeCliente(cl_socket, almacen_compartido, hay_que_parar)</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>        cl_thread.start()</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">except</span> <span class="pp">TimeoutError</span>:</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"No se han recibido conexiones en los últimos 5 segundos. Cerrando el servidor."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>You can think of <code>.set()</code> as saying “I want to stop the event”. So in the next loop iteration the condition will not hold.</p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

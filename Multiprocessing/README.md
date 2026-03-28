@@ -20,7 +20,7 @@ We may want to know the sucesor of `[2,5,9]`.
 
 -Option two (Good!): use `map`. Of course the `for` loop is easier to
 implement and better if you have a small input, but we are thinking of
-big inputs, such as vectors with a large size.
+big inputs, such as vectors with a very large size.
 
 ``` python
 resultados1 = pool.map(sucesor, [2,5,9])

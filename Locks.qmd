@@ -1,0 +1,224 @@
+---
+title: "Lamport's bakery algorithm"
+author: "Santiago Lillo Macías"
+date: last-modified
+format:
+  gfm:
+    toc: true
+engine: knitr
+code-tools: true
+filters:
+    - pseudocode
+---
+
+In this project we study _concurrency_: dealing with multiple tasks at once. A race condition may happen when the "parallel" code is not implemented properly. In particular, we will use `locks`. This is called mutual exclusion.
+
+# Code and Bakery walkthrough
+
+```python
+import threading
+```
+
+Imagine two threads being at a bakery. In order to be served, each of them has to get a ticket. If the counter is set at 0, what happens if both of them get the first turn? Will a third thread get the 2nd or the 3rd ticket? We assume when someone leaves the bakery, the number is free to use again. 
+
+The following class implement a secure counter
+
+```python
+
+class ContadorSeguro:
+    def __init__(self, inicial: int, n_procesos:int) -> None:
+        self.contador = inicial
+        self.lock = Lock()
+
+    def incrementar(self, i:int) -> None:
+        self.lock.acquire(i)
+        self.contador += 1
+        self.lock.release(i)
+
+    def decrementar(self, i:int) -> None:
+        self.lock.acquire(i)
+        self.contador -= 1
+        self.lock.release(i)
+
+    def valor(self) -> int:
+        return self.contador
+```
+
+-`inicial` is the number where the counters starts at
+
+-`incrementar` adds up 1
+
+-`decrementar` substracts 1
+
+-`valor` says which is the current turn.
+
+Before and after every operation, the thread sets a lock. This prevents other threads to do any operation until the current thread has finished. 
+
+The code is correct. But we want to substitute the `Lock()` method with the Lamport Algorithm (1974).
+
+```ad-info
+Lamport's Bakery Algorithm Pseudocode
+```
+```text
+list[boolean] cogiendoNumero ← [False, ..., False]
+list[integer] numero ← [0, ..., 0]
+
+process p_i (i = 0,...,N-1)
+    for
+        cogiendoNúmero[i] ← True
+        número[i] ← 1 + max(numero)
+        cogiendoNumero[i] ← False
+
+        for each process p_j (j =/= i)
+            await cogiendoNumero[j] = False
+            await numero[j] = 0 or ((numero[i],i) < (numero[j],j))
+        end for
+        numero[i] ← 0
+    end for 
+end process
+```
+
+This algorithm does the same job as the `Lock()` described before. 
+
+1.- Start with a list of booleans. `cogiendoNumero[i] = False` means Thread-i is not taking any ticket.
+
+2.- Start with a list of integers. `numero[i] = k` means Thread-i has the k-th turn.
+
+3.- Ask the current turn with `max(numero)` and add one to get the new number. No one will take the same number as Thread-i, because `cogiendoNumero[i]` sets to `True` before a number is assigned. 
+
+4.- Wait until Thread-j takes the ticket
+
+5.- Wait until Thread-j ends its turn if it has higher priority. 
+
+6.- Release the Thread-i original number.
+
+How to compare threads priority? First, if `numero[j] < numero[i]` the Thread-j goes first. If they have the same number, Thread-j goes first if j<i. 
+
+We now implement the algorithm on python with a `Panaderia` class. Panadería is bakery in spanish. 
+
+```python
+class LockPanaderia:
+    def __init__(self, N_procesos: int):
+        self.cogiendoNumero = [False] * N_procesos  
+        self.numero = [0] * N_procesos  # Thread tickets storage
+        self.N = N_procesos
+
+    def acquire(self, i: int):
+        # Protocolo de entrada
+        self.cogiendoNumero[i] = True # Thread i is taking a number
+        self.numero[i] = 1 + max(self.numero) 
+        self.cogiendoNumero[i] = False # Thread i has finished taking a number
+
+        for j in range(self.N):
+            if j == i:
+                continue # we don't want to compare to ourselves
+
+            # Wait until Thread-j has finished taking his turn
+            while self.cogiendoNumero[j]:
+
+            # If Thread-j goes before Thread-i, wait until Thread-j has finished his turn.
+            while self.numero[j] != 0 and self.comparar(j, i):
+
+    def release(self, i: int):
+        self.numero[i] = 0 
+
+    def comparar(self, i: int, j: int) -> bool:
+        # Returns True if Thread-i goes before Thread-j
+        # Assume i =/= j
+        if self.numero[i] < self.numero[j]:
+            return True
+        elif self.numero[i] == self.numero[j]:
+            return i < j
+        else:
+            return False
+```
+
+# Testing the Bakery
+
+Lets test our function. The counter starts at 0. We create 5 threads. Each of them will get a number. At the end, the counter should be five.
+
+```python
+print("--- INICIANDO TEST 1: PRUEBA BÁSICA ---")
+N_HEBRAS_BASICO = 5
+contador_basico = ContadorSeguro(0, N_HEBRAS_BASICO)
+lista_hebras_basico = []
+
+for i in range(N_HEBRAS_BASICO):
+    hebra = threading.Thread(target=contador_basico.incrementar, args=(i,))
+    lista_hebras_basico.append(hebra)
+    hebra.start()
+
+for hebra in lista_hebras_basico:
+    hebra.join()
+
+print(f"Esperado: {N_HEBRAS_BASICO}")
+print(f"Obtenido: {contador_basico.valor()}")
+if contador_basico.valor() == N_HEBRAS_BASICO:
+    print("Test 1: SUPERADO \n")
+else:
+    print("Test 1: FALLIDO \n")
+```
+
+Output:
+
+```text
+--- INICIANDO TEST 1: PRUEBA BÁSICA ---
+Esperado: 5
+Obtenido: 5
+Test 1: SUPERADO 
+```
+
+Lets try a trickier example. Imagine a stressful user who takes and releases a number thousands of times. If everything goes well, the counter should be at zero at the end, because the user has acquired a ticket the same number of times he has released it. 
+
+```python
+def trabajador_estresante(contador: ContadorSeguro, id_hebra: int, iteraciones: int) -> None:
+    for _ in range(iteraciones):
+        contador.incrementar(id_hebra)
+        contador.decrementar(id_hebra)
+```
+
+We create 8 threads, each of them, asking for 10_000 tickets. We start at zero.
+
+```python
+    print("--- INICIANDO TEST 2: PRUEBA DE ESTRÉS ---")
+    N_HEBRAS_ESTRES = 8
+    ITERACIONES = 10_000  # 10,000 operations per thread
+    
+    contador_estres = ContadorSeguro(0, N_HEBRAS_ESTRES)
+    lista_hebras_estres = []
+
+    inicio_tiempo = time.time()
+
+    for i in range(N_HEBRAS_ESTRES):
+        hebra = threading.Thread(target=trabajador_estresante, args=(contador_estres, i, ITERACIONES))
+        lista_hebras_estres.append(hebra)
+        hebra.start()
+
+    for hebra in lista_hebras_estres:
+        hebra.join()
+
+    fin_tiempo = time.time()
+
+    print(f"Operaciones totales: {N_HEBRAS_ESTRES * ITERACIONES * 2} (incrementos y decrementos)")
+    print(f"Tiempo de ejecución: {fin_tiempo - inicio_tiempo:.2f} segundos")
+    print("Esperado: 0")
+    print(f"Obtenido: {contador_estres.valor()}")
+    
+    if contador_estres.valor() == 0:
+        print("Test 2: SUPERADO ¡Tu candado resiste!")
+    else:
+        print("Test 2: FALLIDO Hay condiciones de carrera.")
+```
+
+Output:
+
+```text
+--- INICIANDO TEST 2: PRUEBA DE ESTRÉS ---
+Operaciones totales: 160000 (incrementos y decrementos)
+Tiempo de ejecución: 13.69 segundos
+Esperado: 0
+Obtenido: 0
+Test 2: SUPERADO ¡Tu candado resiste!
+```
+
+Great!

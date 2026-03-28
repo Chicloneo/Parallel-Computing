@@ -1,0 +1,210 @@
+# Montecarlo simulation with Queues
+Santiago Lillo Macías
+2026-03-28
+
+- [Code](#code)
+- [Example](#example)
+
+This is a Montecarlo simulation called FIRE (Financial Independence,
+Retire Early).
+
+Given variables such as age, life expectancy, and yearly spending, how
+much money do I need to retire? We are not considering variables such as
+inflation or life expectancy through the next years. We answer to this
+question with a simple model given by the formula:
+
+$$c_{t+1} = c_t(1 + v_t) - g$$
+
+where
+
+- $c_t$ is the remaining balance (\$) on the $t$-th year ($c$ because of
+  *capital* in spanish). $c_n$ is the last year.
+
+- $g$ is the yearly spending
+
+- $v_t$ is the investment value on the $t$-th year. We suppose money is
+  invest in a mutual fund. $v_t \in N(\mu, \sigma)$. A realistic
+  assumtion is $\mu = 0.06$ and $\sigma = 0.15$.
+
+The final question is: will remain any money on the $c_n$ year? We do
+not care how much money we will leave our sons. We just ask if
+$c_n \leq 0$ or not.
+
+A single simulation with the formula above would not be realistic.
+Hence, we will repeat the experiment 1_000_000 times (or even more).
+Doing that with a 1_000_000 iterations loop is highly unefficient. We
+implement Processes and Queues.
+
+# Code
+
+We start defining the variables
+
+``` python
+capital_inicial = 900_000    # we start with 900_000 $
+esperanza_de_vida = 60
+gasto_anual = 3_000 * 12     # we spend 3k each month
+mu = 0.06
+sigma = 0.15
+num_simulaciones = 1_000_000 # repeat the experiment a million times
+```
+
+We create a `Simulacion` class to isolate the experiments.
+
+``` python
+from multiprocessing import Process, Queue
+
+class Simulacion(Process):
+    def __init__(self, capital_inicial, esperanza_de_vida, gasto_anual, mu, sigma, num_simulaciones, nombre_archivo):
+        super().__init__()
+        self.capital_inicial   = capital_inicial
+        self.esperanza_de_vida = esperanza_de_vida
+        self.gasto_anual       = gasto_anual
+        self.mu                = mu
+        self.sigma             = sigma
+        self.num_simulaciones  = num_simulaciones
+
+        self.result_queue      = None
+```
+
+`Simulacion` is a `Process` subclass. `result_queue` is teh attribute
+where the wueue goes. We still have no queue.
+
+A single simulation of the experiment looks like this (as a `Simulacion`
+method):
+
+``` python
+def una_simulacion(capital_inicial: float, esperanza_de_vida: int, gasto_anual: float, mu: float, sigma: float) -> bool:
+    capital_actual = capital_inicial
+    anyos_restantes = esperanza_de_vida
+
+    while capital_actual > 0 and anyos_restantes > 0:
+        variacion_inversion = gauss(mu, sigma)
+        capital_actual = capital_actual * (1 + variacion_inversion) - gasto_anual
+        anyos_restantes -= 1
+
+    return capital_actual > 0
+```
+
+This function implements the formula mentioned above. It returns `True`
+whether money still remains \> 0 on the last year.
+
+Run method implementation:
+
+``` python
+def run(self):
+    num_sies = 0
+    for i in range(self.num_simulaciones):
+        if una_simulacion(self.capital_inicial, self.esperanza_de_vida, self.gasto_anual, self.mu, self.sigma):
+            num_sies += 1
+
+    if self.result_queue is not None:
+        self.result_queue.put(num_sies) #escribimos el resultado en la cola
+```
+
+First, we do the simulation N (`num_simulaciones`) times. We store the
+favorable outcomes as `num_sies` (number of YES! winning experiments).
+Then, we add it to the queue, if it is not `None`.
+
+# Example
+
+``` python
+q = Queue() # create a queue
+
+lista_simulaciones = [Simulacion(capital_inicial, esperanza_de_vida, gasto_anual, mu, sigma, num_simulaciones//8, f'Montecarlo_{i}') for i in range(8)]
+# 8 parallel processes. The total number of experiments is num_simulaciones
+
+for proceso in lista_simulaciones:
+    proceso.result_queue = q
+    proceso.start()
+for proceso in lista_simulaciones:
+    proceso.join()
+
+num_sies = 0
+for proceso in lista_simulaciones:
+    num_sies += q.get() #el resultado está guardado en la cola y lo vamos sacando (ya no está en la cola)
+```
+
+I chose 8 different processes because it’s the number of cores my laptop
+has. On the first two `for` loops, we start the processes and wait until
+they all finish. Remark result_queue isn’t `None` anymore (until we
+finish). On the last loop, we obtain the total results.
+
+The following is a script to test the Montecarlo experiments.
+`time.perf_counter()` is useful to measure how much time has passed
+before and after the experiments:
+
+``` python
+import time
+
+if __name__ == '__main__':
+
+    print('\n')
+    print('Montecarlo')
+    print('\n')
+
+    capital_inicial = 900_000
+    esperanza_de_vida = 60
+    gasto_anual = 3_000 * 12
+    mu = 0.06
+    sigma = 0.15
+    num_simulaciones = 1_000_000
+
+    num_sies = 0
+    t0 = time.perf_counter()
+    for i in range(num_simulaciones):
+        if una_simulacion(capital_inicial, esperanza_de_vida, gasto_anual, mu, sigma):
+            num_sies += 1
+    t1 = time.perf_counter()
+
+    print('Número de éxitos: ' f'{num_sies}', 'Número de simulaciones: ' f'{num_simulaciones}')
+    print('Porcentaje de éxito: ' f'{(num_sies/num_simulaciones)*100}%')
+    print(f'Tiempo secuencial: {t1 - t0:.4f} segundos')
+
+    print('\n')
+    print('--------------------------------------------')
+    print('\n')
+
+    t0 = time.perf_counter()
+
+    q = Queue() #creamos una cola
+
+    lista_simulaciones = [Simulacion(capital_inicial, esperanza_de_vida, gasto_anual, mu, sigma, num_simulaciones//8, f'Montecarlo_{i}') for i in range(8)]
+    #Dividimos entre 8 las simulaciones totales porque hacemos 8 procesos paralelos
+
+    for proceso in lista_simulaciones:
+            proceso.result_queue = q
+            proceso.start()
+    for proceso in lista_simulaciones:
+            proceso.join()
+
+    num_sies = 0
+    for proceso in lista_simulaciones:
+            num_sies += q.get() #el resultado está guardado en la cola y lo vamos sacando (ya no está en la cola)
+
+    t1 = time.perf_counter()
+
+    print('Número de éxitos: ' f'{num_sies}', 'Número de simulaciones: ' f'{num_simulaciones}')
+    print('Porcentaje de éxito: ' f'{(num_sies/num_simulaciones)*100}%')
+    print(f'Tiempo con paralelismo: {t1 - t0:.4f} segundos')
+    print('\n')
+```
+
+With the given data, the big time difference between using or not
+`Process` is shown:
+
+``` text
+Montecarlo
+
+Número de éxitos: 674128 Número de simulaciones: 1000000
+Porcentaje de éxito: 67.41279999999999%
+Tiempo secuencial: 32.5963 segundos
+
+--------------------------------------------
+
+Número de éxitos: 674576 Número de simulaciones: 1000000
+Porcentaje de éxito: 67.4576%
+Tiempo con paralelismo: 8.6853 segundos
+```
+
+Finally, around 67% of the times, my 900_000 savings would be enough for
+60 years.

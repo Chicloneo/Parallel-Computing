@@ -63,6 +63,7 @@ But what is this `pool` thing? Before using it, we have to create a
 Pool:
 
 ``` python
+from multiprocessing import Pool
 pool = Pool()
 ```
 

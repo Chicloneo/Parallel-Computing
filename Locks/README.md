@@ -22,7 +22,7 @@ both of them get the first turn? Will a third thread get the 2nd or the
 3rd ticket? We assume when someone leaves the bakery, the number is free
 to use again.
 
-The following class implement a secure counter
+The following class implement a secure counter (`Contador.py` file)
 
 ``` python
 
@@ -104,7 +104,7 @@ How to compare threads priority? First, if `numero[j] < numero[i]` the
 Thread-j goes first. If they have the same number, Thread-j goes first
 if j\<i.
 
-We now implement the algorithm on python with a `Panaderia` class.
+We now implement the algorithm on python with a `Panaderia` class (`Panaderia.py` file).
 Panadería is bakery in spanish.
 
 ``` python
@@ -146,7 +146,7 @@ class LockPanaderia:
 
 # Testing the Bakery
 
-Lets test our function. The counter starts at 0. We create 5 threads.
+Lets test our function in `Contador.py`. The counter starts at 0. We create 5 threads.
 Each of them will get a number. At the end, the counter should be five.
 
 ``` python

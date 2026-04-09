@@ -70,7 +70,7 @@ cl_socket, _ = srvr_socket.accept() # Hello client, ¿what info do you have for 
 
 `cl_socket, _ = srvr_socket.accept()` creates a new socket (different
 from `srvr_socket`) so we will have to close both at the end.
-`srvr_socket` listens to the cliend and `cl_socket` will recieve the
+`srvr_socket` listens to the client and `cl_socket` will recieve the
 information.
 
 ``` python
@@ -79,7 +79,7 @@ cl_socket.close()
 srvr_socket.close()
 ```
 
-Last two linea end the service.
+Last two lines end the service.
 
 ## How does the connection really works?
 

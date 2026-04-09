@@ -188,7 +188,7 @@ asking “do you have any information?”. So if the message is empty,
 `None`, then the condition is `False`, and the loop ends.
 
 We split the information into `UPPER`/`LOWER` and the text. Then the
-server does the job depending on th ecommand. Using `elif` is essential.
+server does the job depending on the command. Using `elif` is essential.
 Do not use `if`. Imagine you have two `if`s and the command is `UPPER`.
 The first condition holds. The second does not, so it will enter the
 `else` condition and an error will show up.

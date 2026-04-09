@@ -250,7 +250,7 @@ class AtiendeCliente(Thread):
 
             if comando == 'UPPER':
                 respuesta = texto.upper()
-            elif comando == 'LOWER': #Es importante un elif y no un if, porque si el comando es UPPER, volvería a preguntar si es LOWER. Como no lo es, entra en el else y devuelve error
+            elif comando == 'LOWER':
                 respuesta = texto.lower()
             else:
                 respuesta = ('ERROR: petición no reconocida.')
@@ -260,6 +260,7 @@ class AtiendeCliente(Thread):
 
         self.cl_socket.close()
 ```
+Es importante un `elif` y no un `if`, porque si el comando es UPPER, volvería a preguntar si es LOWER. Como no lo es, entra en el `else` y devuelve error
 
 The `run` structure is the same as we saw before. Remark
 `AtiendeCliente` is a `Thread` subclass. `AtiendeCliente` has to know

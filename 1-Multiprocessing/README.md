@@ -5,7 +5,7 @@ Santiago Lillo Macías
 We will compute an integral with two different methods: sequential and
 parallel computing. The simplicity of this example does not allow us to
 show the eficiency of parallel computing. For now, we will just focus on
-this new kind of computing, commonñy unkown for junior developers.
+this new kind of computing, commonly unkown for junior developers.
 
 Let the function be
 

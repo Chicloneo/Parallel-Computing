@@ -2,7 +2,7 @@
 Santiago Lillo Macías
 2026-03-28
 
-We want to generate data. Thousands of numbers. Instead of generating one only file with all of them, we use our parallelism knowledge to fasten it and create multiple text files. For simplicity, our data are numbers.
+We want to generate data. Thousands of numbers. Instead of generating one only file with all of them, we use our parallelism knowledge to speed it up and create multiple text files. For simplicity, our data are numbers.
 
 A procedure to generate a random number is the following
 

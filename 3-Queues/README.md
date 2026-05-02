@@ -66,8 +66,8 @@ class Simulacion(Process):
         self.result_queue      = None
 ```
 
-`Simulacion` is a `Process` subclass. `result_queue` is teh attribute
-where the wueue goes. We still have no queue.
+`Simulacion` is a `Process` subclass. `result_queue` is the attribute
+where the queue goes. We still have no queue.
 
 A single simulation of the experiment looks like this (as a `Simulacion`
 method):

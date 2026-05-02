@@ -28,7 +28,7 @@ where
 
 The final question is: will remain any money on the $c_n$ year? We do
 not care how much money we will leave our sons. We just ask if
-$c_n \leq 0$ or not.
+$c_n \geq 0$ or not.
 
 A single simulation with the formula above would not be realistic.
 Hence, we will repeat the experiment 1_000_000 times (or even more).

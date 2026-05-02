@@ -215,4 +215,4 @@ Tiempo con paralelismo: 8.6853 segundos
 ```
 
 Finally, around 67% of the times, my 900_000 savings would be enough for
-60 years.
+60 years. Not bad.

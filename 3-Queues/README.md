@@ -129,6 +129,14 @@ has. On the first two `for` loops, we start the processes and wait until
 they all finish. Remark result_queue isn’t `None` anymore (until we
 finish). On the last loop, we obtain the total results.
 
+Something like 
+```{text}
+for proceso in lista_simulaciones:
+    proceso.start()
+    proceso.join()
+```
+would be catastrophic. This is saying "wait until the current process ends to start a new one". This is not parallelism at all!
+
 The following is a script to test the Montecarlo experiments.
 `time.perf_counter()` is useful to measure how much time has passed
 before and after the experiments:
